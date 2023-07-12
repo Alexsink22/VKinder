@@ -16,7 +16,7 @@ class VkTools():
         user_info = {
             'name': f"{info.get('first_name', '')} {info.get('last_name', '')}",
             'id': info.get('id'),
-            'bdate': info.get('bdate'),
+            'bdate': info.get('bdate'),  # Получаем дату рождения из профиля пользователя
             'home_town': info.get('home_town'),
             'sex': info.get('sex'),
             'city': info['city'].get('id') if 'city' in info else None
@@ -37,7 +37,7 @@ class VkTools():
         age_to = age + 5
 
         users = self.api.method('users.search', {
-            'count': 10,
+            'count': 50,
             'offset': 0,
             'age_from': age_from,
             'age_to': age_to,
