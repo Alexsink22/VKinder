@@ -23,14 +23,22 @@ class BotInterface():
         self.params = self.api.get_profile_info(event.user_id)
         if self.params['city'] is None:
             self.message_send(event.user_id, f'Здравствуй, {self.params["name"]}! Пожалуйста, укажите ваш город.')
+        elif self.params['bdate'] is None:
+            self.message_send(event.user_id,
+                              f'Здравствуй, {self.params["name"]}! Пожалуйста, укажите вашу дату рождения или возраст.')
         else:
             self.message_send(event.user_id, f'Здравствуй, {self.params["name"]}!')
 
     def handle_message(self, event):
         if self.params and self.params['city'] is None:
-            city = event.text.strip()  # Извлечь название города из текста сообщения
+            city = event.text.strip()
             self.params['city'] = city
             self.message_send(event.user_id, f'Спасибо, {self.params["name"]}. Город успешно обновлен.')
+        elif self.params and self.params['bdate'] is None:
+            bdate = event.text.strip()  # Получаем введенную дату рождения или возраст
+            self.params['bdate'] = bdate
+            self.message_send(event.user_id,
+                              f'Спасибо, {self.params["name"]}. Дата рождения или возраст успешно обновлены.')
         else:
             self.message_send(event.user_id, 'Команда не распознана.')
 
@@ -41,12 +49,27 @@ class BotInterface():
             else:
                 viewed_profiles = get_from_db(event.user_id)
                 params = self.params.copy()
-                users = self.api.search_users(params)
-                filtered_users = [user for user in users if user['id'] not in viewed_profiles]
-                if filtered_users:
-                    user = filtered_users.pop()
+                # params['city'] = None  # Сброс города из параметров для поиска
+
+                offset = 0  # Начальное значение сдвига (offset)
+                count = 10  # Количество анкет для каждого поискового запроса
+                total_users = []  # Общий список найденных анкет
+
+                while len(total_users) < count:
+                    params['offset'] = offset  # Установка сдвига (offset) в параметры поиска
+                    users = self.api.search_users(params)
+                    filtered_users = [user for user in users if user['id'] not in viewed_profiles]
+                    total_users.extend(filtered_users)  # Добавление найденных анкет в общий список
+                    offset += len(users)  # Увеличение сдвига (offset) на количество найденных анкет
+
+                    if len(users) < count:
+                        break  # Прерывание цикла, если количество найденных анкет меньше заданного
+
+                if total_users:
+                    user = total_users.pop(0)  # Получение первой анкеты из общего списка
                     photos_user = self.api.get_photos(user['id'])
-                    photos_user = sorted(photos_user, key=lambda x: x['likes'] + x['comments'] * 10, reverse=True)  # Сортировка фото по лайкам и комментариям
+                    photos_user = sorted(photos_user, key=lambda x: x['likes'] + x['comments'] * 10,
+                                         reverse=True)  # Сортировка фото по лайкам и комментариям
                     attachment = ''
                     for photo in photos_user[:3]:  # Выводим три лучшие фото
                         photo_attachment = f'photo{photo["owner_id"]}_{photo["id"]}'
